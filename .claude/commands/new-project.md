@@ -97,7 +97,7 @@ project/
 │   ├── SOUL.md                  # Agent identity
 │   ├── about-me.md              # Who you are, what you want from the partner
 │   ├── working-style.md         # How you want Claude to behave
-│   ├── anchor.md                # Compaction-resistant critical rules
+│   ├── anchor.md                # Short, front-loaded absolute constraints (persuasion, not enforcement)
 │   ├── hooks/
 │   │   ├── env-guard.sh         # PreToolUse: blocks .env reads
 │   │   └── ctx-monitor.sh       # PostToolUse: warns at 60/80 tool calls
@@ -391,6 +391,8 @@ The lifecycle closes the loop. A mistake without a prevention step just repeats.
 
 ## Phase 4: Anchor Rules Template
 
+> **Note:** anchor.md is the strongest *persuasion* layer (short, front-loaded, with self-instruction to re-read) but it is **not enforcement**. `@`-imported files do not survive compaction. For rules where one violation is unacceptable, use a `deny` pattern in `settings.json` or a PreToolUse hook (Phase 3 / Phase 5). The "Re-read after compaction" line below is text Claude may follow — keep it, but don't rely on it for irreversible rules.
+
 ```markdown
 # Anchor Rules
 
@@ -527,14 +529,14 @@ Wire the defenses against these before you need them. These are the most common 
 | **Scope Creep by AI** | Claude finishes M2 and starts M3 unprompted | Define milestones in WORKLOG.md — they are the boundary. "When the agent finishes M2, it stops." |
 | **Premature Completion** | Claude self-reports done when only Level 1 (Exists) is satisfied | Use Four-Level Verification Hierarchy — require Level 4 (Functional) for any task marked complete |
 | **Context Pollution** | Long sessions where Claude mixes old task context into new work | `/clear` between unrelated tasks; `/compact` at phase transitions (not mid-task) |
-| **Compaction Amnesia** | Anchor rules lost after compaction | `anchor.md` imported first in CLAUDE.md; re-read instruction in anchor itself |
+| **Compaction Amnesia** | Rules in `@`-imported files lost after compaction; only literal project-root CLAUDE.md text is re-injected from disk | Inline truly critical rules directly in CLAUDE.md; for rules that cannot be missed once, use `deny` patterns or PreToolUse hooks; treat `anchor.md` re-read instruction as best-effort persuasion, not a guarantee |
 | **Concurrent File Editing** | Multiple agents editing the same file; last write wins | One-writer rule: only one agent may write to a file at a time; use worktrees for parallel work |
 | **Context Degradation** | Waiting until 100% context fill to compact | Compact at 20-40% degradation — performance degrades long before the limit; don't wait for auto-compaction |
 | **Empty Context Files** | about-me.md / working-style.md created but never filled | Fill them in Phase 0, same session as project creation |
 | **Loop Trap** | Retrying the same failing fix 3+ times | If the same fix fails twice, stop and ask — encode this in anchor.md |
 | **Kitchen-Sink Skills** | Encoding everything as a skill, including one-off tasks | Rule of Three: only encode after doing manually 3 times |
 | **Model-Task Mismatch** | Using Opus for repetitive subtasks (wasteful) or Haiku for complex reasoning (poor quality) | Match model to task: Opus → planning, Sonnet → implementation, Haiku → repetition |
-| **Vision Compression** | Strategic context (the "why") gets compressed out as implementation detail grows; features ship correctly but solve the wrong problem | Checkpoint strategic context at each milestone in WORKLOG; use `anchor.md` to preserve the original goal; `_MANIFEST.md` for large projects |
+| **Vision Compression** | Strategic context (the "why") gets compressed out as implementation detail grows; features ship correctly but solve the wrong problem | Checkpoint strategic context at each milestone in WORKLOG; for the *original goal* specifically, inline a one-liner in project-root CLAUDE.md (it survives compaction; imported files don't); `_MANIFEST.md` for large projects |
 | **Prompt Entropy** | A prompt grows through accumulated patches until Claude stops following it reliably; instructions are contradictory or redundant | Treat prompts like code: version them, test on change, prune rather than patch — rewrite from scratch when degraded |
 | **Over-Automation Collapse** | Too many autonomous steps; one mistake compounds silently through the entire chain before you see output | Cap autonomous runs; require human checkpoint every N steps; prefer fewer verifiable steps over longer unsupervised chains |
 | **State Corruption** | Multiple agents or sessions write to shared state without coordination; last-write-wins silently breaks things downstream | One-writer rule enforced via worktrees; always read current state before writing; use atomic file operations |

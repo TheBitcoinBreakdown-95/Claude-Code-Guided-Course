@@ -290,7 +290,7 @@ Say:
 > - **about-me.md** — who you are: role, background, goals
 > - **working-style.md** — how you work: response format, when to ask, how to disagree
 > - **SOUL.md** — Claude's working identity for this project: instincts, not rules
-> - **anchor.md** — absolute constraints that survive even when Claude's memory gets compressed
+> - **anchor.md** — short, front-loaded list of absolute constraints; the strongest *persuasion* layer (not enforcement — see Module 2 for hooks)
 >
 > Each one holds content that changes at a different rate. about-me.md barely changes. anchor.md is written once. SOUL.md evolves as you refine what instincts you want Claude to have.
 >
@@ -436,9 +436,9 @@ Say:
 
 Correct gently if needed. Then say:
 
-> Here's a problem with everything we've built so far. SOUL.md, anchor.md, about-me.md, working-style.md — these all load at the start of the session. But sessions have a finite size. When Claude's context fills up, it **compacts** — it summarizes the conversation history to make room.
+> Here's a problem with everything we've built so far. SOUL.md, anchor.md, about-me.md, working-style.md — these all load at the start of the session via `@` imports. But sessions have a finite size. When Claude's context fills up, it **compacts** — it summarizes the conversation history to make room.
 >
-> When compaction happens, some content survives. Some gets dropped. Instructions and rules are often the first to go — the summarizer treats them as background, not conversation.
+> Here's the part most people get wrong: only the *literal text of project-root CLAUDE.md* gets re-injected from disk after compaction. Everything else — including `@`-imported files like anchor.md — gets summarized along with the conversation. The summarizer often treats instructions as background and drops them.
 >
 > Which of your rules would hurt most to lose mid-session?
 
@@ -450,13 +450,18 @@ Check-in: let them feel this before continuing.
 
 Say:
 
-> That's exactly the risk. anchor.md exists because of it.
+> Here's the honest picture of anchor.md.
 >
-> anchor.md gets re-read from disk, not summarized. When compaction happens, the content of anchor.md survives because it's loaded fresh every session — it's never in the conversation history to begin with.
+> anchor.md is **not** a magic file that survives compaction. There's no special re-load mechanism — `@`-imported content is loaded once at session start and gets summarized like everything else. The "Re-read this file after any compaction" line you'll see at the top of anchor files is a self-instruction Claude *may* follow — text persuasion, not enforcement.
 >
-> Two things that make anchor.md different from CLAUDE.md:
-> - It's for **absolute constraints only** — not preferences, not guidelines. Rules where violation causes real damage or is irreversible.
-> - It should **instruct itself to be re-read**: the first line should say something like "Re-read this file after any compaction or long session." This is the self-reinforcing trick.
+> What anchor.md *is*: the strongest *persuasion* layer you have without writing a hook. It's short, front-loaded, and contains only absolute constraints — so the rules sit where Claude's attention is highest and don't compete with operational guidance.
+>
+> Three rules for keeping anchor.md effective:
+> - **Absolute constraints only** — not preferences, not guidelines. Rules where violation causes real damage or is irreversible.
+> - **Keep it small.** If everything is critical, nothing is. Three to five rules max.
+> - **Add a re-read instruction at the top** — knowing it's persuasion, not enforcement. It still works most of the time.
+>
+> If a rule absolutely cannot be missed once — that's a hook (Module 2) or a `deny` pattern in `settings.json`, not anchor.md. Compaction-survival for content lives in inline CLAUDE.md text or in those enforcement layers — not in imported files.
 >
 > Example:
 >
@@ -470,7 +475,7 @@ Say:
 >
 > Write one anchor rule: the single constraint in your project where violation would be genuinely dangerous or hard to undo. Just one, numbered. Share it.
 
-Wait for their rule. Debrief briefly: "Notice how different it feels from a CLAUDE.md instruction — it's absolute, not advisory. anchor.md is small by design: if everything is critical, nothing is." Then continue.
+Wait for their rule. Debrief briefly: "Notice how different it feels from a CLAUDE.md instruction — it's absolute, not advisory. anchor.md is small by design: if everything is critical, nothing is. And remember — for rules that can't tolerate even one miss, you'll need a hook or deny pattern, not text." Then continue.
 
 ---
 
@@ -1589,7 +1594,7 @@ Now a smaller fix for a problem you've probably already hit: CLAUDE.md bloat.
 
 As a project matures, CLAUDE.md accumulates rules. Some apply everywhere. But some only matter when you're editing Python files, or running database migrations, or working inside the KB. Loading all of them always adds context overhead and noise.
 
-**Path-scoped rules** solve this. The `.claude/rules/` directory holds rule files with a `paths:` frontmatter field. Claude loads them only when files matching that pattern are open.
+**Path-scoped rules** solve this. The `.claude/rules/` directory holds rule files with a `paths:` frontmatter field. Claude loads them only when files matching that pattern are read. Rule files **without** a `paths:` field load unconditionally at session start (like CLAUDE.md does).
 
 ```markdown
 ---
@@ -1602,6 +1607,8 @@ paths: ["src/**/*.py"]
 ```
 
 These rules don't appear in CLAUDE.md at all. They load conditionally, keep the always-loaded context lean, and put rules where they're relevant.
+
+One caveat worth knowing: path-scoped rules **also don't survive compaction** — they're lost until a matching file is read again, at which point they reload. So they're great for keeping context lean but bad as a place for rules where one miss is unacceptable. That kind of rule still belongs in a hook or a `deny` pattern.
 
 Does your project have rules that only apply to a specific file type or directory? If yes, name one. If not, describe what would go in a KB-editing rule file for this workspace.
 
