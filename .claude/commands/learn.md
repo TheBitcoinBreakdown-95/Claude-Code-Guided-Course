@@ -140,7 +140,7 @@ Say:
 >
 > Everything there is something you'd otherwise re-explain every session. Now it's written once.
 >
-> Here's the limit worth knowing now: CLAUDE.md works best at around 150–200 instructions. Not lines — instructions. Dense rule paragraphs hit this limit faster than sparse prose. When it grows past that, Claude starts processing it inconsistently — rules in the middle get deprioritized.
+> Here's the limit worth knowing now: Anthropic's current guidance is to keep CLAUDE.md under 500 lines, and the community heuristic is even tighter — roughly 150–200 distinct instructions (not lines; dense rule paragraphs count as many). Either way, when CLAUDE.md grows past its comfortable size, Claude starts processing it inconsistently — rules in the middle get deprioritized.
 >
 > Here's the problem that creates. Look at the rules in your stub. What happens if Claude reads them once at the start of the session — but halfway through a long conversation, simply forgets one?
 
@@ -263,7 +263,7 @@ Say:
 
 > In Module 0 you wrote a CLAUDE.md stub with three or four things. Imagine it's a month later. You've added your tech stack, rules about code style, files Claude isn't allowed to touch, how you like responses formatted, your background, what you want challenged before big decisions...
 >
-> CLAUDE.md has a real limit: around 150–200 instructions. Not lines — instructions. A dense rule paragraph can count as 10. When CLAUDE.md grows past that limit, Claude processes it inconsistently. Rules in the middle get deprioritized — not skipped entirely, but treated as less important.
+> CLAUDE.md has a real limit. Anthropic publishes 500 lines as a soft ceiling; the community heuristic is tighter — around 150–200 distinct instructions (not lines; a dense rule paragraph can count as ten). Once you cross your comfortable size, Claude processes the file inconsistently. Rules in the middle get deprioritized — not skipped entirely, but treated as less important.
 >
 > Here's the question: if everything is in one file, which rules end up in the middle?
 
@@ -496,7 +496,7 @@ Say:
 >
 > SOUL.md and anchor.md go first: identity and absolute constraints are what you most want front-loaded.
 >
-> One more thing: keep static content (imports, identity) before any dynamic instructions you write directly in CLAUDE.md. Static content gets cached — it doesn't get re-processed every session. Dynamic content at the top breaks that cache every time.
+> One more thing: keep static content (imports, identity) before any dynamic instructions you write directly in CLAUDE.md. Within a session, static content gets cached — it doesn't get re-tokenized every turn (the prompt cache is bounded, typically a 5-minute or 1-hour TTL, and it doesn't persist between sessions). Dynamic content placed before static content breaks that cache, costing tokens on every turn.
 >
 > Look at your CLAUDE.md stub from Module 0. Which entries are "static" — facts that rarely change — versus "dynamic" — instructions you might update session to session?
 
@@ -606,9 +606,9 @@ Say:
 > Good. That's the shape of every enforcement hook — event, condition, exit code.
 >
 > Exit code summary:
-> - `2` — blocked. The tool call never executes. Claude receives an error.
-> - `0` — allowed. Normal execution.
-> - Any other code — warning. Claude sees the message; execution continues.
+> - `2` — blocked. The tool call never executes. Claude receives the stderr message as an error.
+> - `0` — allowed. Normal execution. stdout is shown to the user (in transcript-mode), Claude does not see it.
+> - Any other code (1, 3, etc.) — **silent failure.** The harness logs the error, but the tool call proceeds and Claude does NOT see your stderr message. This is the single most common hook-writing mistake: a "security" hook using `exit 1` does nothing. If you want Claude to be told and the action blocked, use `exit 2`.
 >
 > You've covered the blocking side of hooks. Here's the other side.
 >
@@ -1503,7 +1503,7 @@ Here is what a `_MANIFEST.md` looks like:
 - `DECISIONS.md` — architectural decisions; read before proposing changes
 ```
 
-Claude reads this at session start (via SessionStart hook or CLAUDE.md instruction) before touching any file. It acts as a map — Claude knows where to look without guessing.
+Claude doesn't auto-read this on its own — you make it load. Two paths: (a) reference it from CLAUDE.md ("Read `_MANIFEST.md` before searching for files"), or (b) wire a SessionStart hook (built in Module 2) that prints "Read `_MANIFEST.md` first" to stdout — Claude treats hook stdout as additional context. Once wired, it acts as a map — Claude knows where to look without guessing.
 
 Your turn: write a `_MANIFEST.md` stub for your current project. Five to ten lines. Directories and key files only. Real project, real paths.
 
@@ -1662,9 +1662,9 @@ One last ceiling: MCP servers.
 
 Every MCP server you add costs latency and token overhead at every tool call. This compounds. A project with 15 active MCP servers and 120 tools is slower and noisier than the same project with 5 servers and 40 tools — even if most of those tools are never called.
 
-Two hard limits:
-- Maximum 10 MCP servers per project
-- Maximum 80 tools total across all MCPs
+Two practitioner heuristics worth treating like limits (not enforced by Claude Code, but past them the noise dominates the value):
+- Around 10 MCP servers per project
+- Around 80 tools total across all MCPs
 
 Rules that follow from those limits:
 - If you're not actively using a server, remove it — you can add it back
